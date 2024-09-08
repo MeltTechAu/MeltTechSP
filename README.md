@@ -30,7 +30,7 @@ to get it on your phone put in ip adresss of youur PI example below
 Running on http://192.168.0.166:5001
 
 
-Works with Maxx31855 chip only even works  grounding out thermocouple
+Works with Max31855 chip only even works  grounding out thermocouple
 
 Max31855 chip settings 
 
