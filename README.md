@@ -8,10 +8,10 @@ Rename directory to MeltTech copy  paste to home directory of  RPI
 
 in terminal copy paste 
 
-$    cd MeltTech
-$    python3 -m venv venv
-$    source venv/bin/activate
-$    pip install -r requirements.txt
+$    cd MeltTech             .................
+$    python3 -m venv venv                   ...............
+$    source venv/bin/activate                 ...............
+$    pip install -r requirements.txt               .............
 
 that will install it now to run it in terminal type or copy  paste one line at a time below
 
