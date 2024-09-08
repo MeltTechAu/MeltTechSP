@@ -1,0 +1,287 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kiln Controller</title>
+    <style>
+    body {
+        font-family: Arial, sans-serif;
+        text-align: center;
+        padding: 50px;
+    }
+
+    /* Menu bar styles */
+    .menu-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px;
+        background: linear-gradient(to right, silver, gold);
+        border-radius: 5px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Temperature display */
+    .temp-display {
+        font-size: 24px;
+        font-weight: bold;
+        color: #333;
+    }
+
+    /* Timer display */
+    .timer {
+        font-size: 20px;
+        font-weight: bold;
+    }
+
+    /* Button styles */
+    .menu-buttons {
+        display: flex;
+        gap: 10px;
+    }
+
+    .menu-buttons button {
+        padding: 10px 20px;
+        font-size: 16px;
+        border-radius: 5px;
+        border: none;
+        background-color: #ff69b4;
+        color: white;
+        cursor: pointer;
+        transition: transform 0.2s ease-in-out;
+    }
+
+    .menu-buttons button:hover {
+        background-color: #ff1493;
+        transform: scale(1.05);
+    }
+
+    /* Progress bar */
+    .progress-container {
+        margin: 20px 0;
+    }
+
+    .progress-bar {
+        width: 100%;
+        height: 20px;
+        background-color: #e0e0e0;
+        border-radius: 5px;
+        overflow: hidden;
+    }
+
+    .progress-bar-fill {
+        height: 100%;
+        width: 50%; /* Example value, this will be dynamic */
+        background-color: #ff69b4;
+        transition: width 0.3s ease-in-out;
+    }
+
+    /* Chart container */
+    #chartContainer {
+        margin-top: 20px;
+    }
+
+    </style>
+</head>
+<body>
+
+    <!-- Menu bar -->
+    <div class="menu-bar">
+        <div class="temp-display">Temp: <span id="temp_value">0</span> °C</div>
+
+        <!-- Temperature and Hold Time Settings -->
+        <div class="settings">
+            <label for="set_point">Set Point (°C):</label>
+            <input type="number" id="set_point" name="set_point" placeholder="Enter temperature" />
+            <label for="hold_time">Hold Time (s):</label>
+            <input type="number" id="hold_time" name="hold_time" placeholder="Hold time in seconds" />
+        </div>
+
+        <div class="timer">Time: <span id="timer_value">00:00:00</span></div>
+
+        <div class="menu-buttons">
+            <button onclick="startKiln()">Start</button>
+            <button onclick="pauseKiln()">Pause</button>
+            <button onclick="stopKiln()">Stop</button>
+        </div>
+    </div>
+
+    <!-- Progress bar -->
+    <div class="progress-container">
+        <div class="progress-bar">
+            <div class="progress-bar-fill" id="progress_bar_fill"></div>
+        </div>
+    </div>
+
+    <!-- Chart container -->
+    <div id="chartContainer">
+        
+    <!-- Shrink graph height by 50% -->
+    <canvas id="temperatureChart" style="height: 50%;"></canvas>
+    
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        let temperatureData = [];
+        let timeData = [];
+        let chart;
+
+        function startKiln() {
+            const setPoint = document.getElementById('set_point').value;
+            const holdTime = document.getElementById('hold_time').value;
+            
+            fetch('/start', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    set_point: setPoint,
+                    hold_time: holdTime,
+                }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('set_point_display').innerText = setPoint;
+                    alert('Kiln started successfully');
+                } else {
+                    alert('Failed to start kiln');
+                }
+            });
+        }
+
+        function pauseKiln() {
+            const pauseTemp = document.getElementById('current_temperature').innerText;
+            
+            fetch('/pause_at_temp', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ pause_temp: pauseTemp }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === "success") {
+                    alert(data.message);
+                } else {
+                    alert('Failed to pause kiln');
+                }
+            });
+        }
+
+        function stopKiln() {
+            fetch('/stop', {
+                method: 'POST',
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Kiln stopped successfully');
+                } else {
+                    alert('Failed to stop kiln');
+                }
+            });
+        }
+
+        function updateDashboard() {
+            fetch('/status')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('temp_value').innerText = data.current_temperature.toFixed(2);
+                    document.getElementById('timer_value').innerText = data.elapsed_time.toFixed(2);
+
+                    // Update progress bar
+                    const progressFill = document.getElementById('progress_bar_fill');
+                    const progress = (data.elapsed_time / data.total_time) * 100;
+                    progressFill.style.width = progress + '%';
+
+                    // Update the chart
+                    temperatureData.push(data.current_temperature);
+                    timeData.push(data.elapsed_time);
+
+                    if (chart) {
+                        chart.update();
+                    }
+                });
+        }
+
+        function setupChart() {
+            const ctx = document.getElementById('temperatureChart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: timeData,
+                    datasets: [{
+                        label: 'Temperature (°C)',
+                        data: temperatureData,
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        borderWidth: 2,
+                        fill: false
+                    }]
+                },
+                options: {
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            setupChart();
+            setInterval(updateDashboard, 5000);
+        });
+    </script>
+
+    <!-- Temperature overlay moved to the center of the graph with a 100% size increase -->
+    <div class="temp-overlay" id="temp-overlay" style="position:absolute;top:50%;left:50%;transform: translate(-50%, -50%);font-size:14.4em;color:rgba(255,0,0,0.4);display:flex;justify-content:center;align-items:center;visibility:hidden;">
+        <span id="overlay-temp">1200°C</span>
+    </div>
+
+    <!-- Moved toggle button to bottom right under the graph -->
+    
+    <button class="toggle-temp-btn" onclick="toggleTempOverlay()" style="margin-top: 20px; position: absolute; right: 10px; bottom: 10px;
+    padding:10px 20px;background-color:#6A6A6A;color:white;border:none;cursor:pointer;z-index:10;">
+        Toggle Temp Overlay
+    </button>
+
+    <script>
+    // Function to toggle the temperature overlay behind the graph
+    function toggleTempOverlay() {
+        const overlay = document.getElementById('temp-overlay');
+        if (overlay.style.visibility === 'visible') {
+            overlay.style.visibility = 'hidden';
+        } else {
+            overlay.style.visibility = 'visible';
+        }
+    }
+
+    // Function to dynamically update the temperature from the actual system (assuming fetch from system API)
+    function updateTemperature(temp) {
+        document.getElementById('overlay-temp').textContent = temp + '°C';
+        document.getElementById('temp_value').textContent = temp + '°C'; // Also update menu bar temperature
+    }
+
+    // Simulate actual temperature updates from your system
+    setInterval(() => {
+        fetch('/status')  // Fetch the actual temperature from the system
+            .then(response => response.json())
+            .then(data => {
+                const actualTemp = data.current_temperature;  // Assuming temperature is returned in current_temperature field
+                updateTemperature(actualTemp.toFixed(1));
+            })
+            .catch(error => console.error('Error fetching temperature:', error));
+    }, 1000);  // Update every second
+
+    </script>
+    </body>
+    
+</html>
