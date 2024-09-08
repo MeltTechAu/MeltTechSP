@@ -1,5 +1,3 @@
-# MeltTechSP
-MeltTech Simple Pid
 # simple-PID
 simple PID RPI
 Made for rassbberry pi kiln controller ssimple PID

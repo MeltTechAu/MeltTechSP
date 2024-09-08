@@ -1,0 +1,6 @@
+RPi.GPIO
+simple-pid
+chart.js
+Flask
+Flask==2.1.0
+chart.js==2.9.4
