@@ -59,7 +59,7 @@ pip install adafruit-circuitpython-max31855
 
 pip install simple-pid
 
-pip install flaskbelow
+pip install flask
 
 Works on  a phone onn local network RPI IP
 example below
